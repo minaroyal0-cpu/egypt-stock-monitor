@@ -33,7 +33,7 @@ class ImpactTests(unittest.TestCase):
         self.assertEqual(result["match_type"], "مباشر")
 
     def test_tone_is_not_stock_direction(self):
-        result = analyze_headline("فوري تعلن زيادة التكاليف التشغيلية", ["FWRY"])
+        result = analyze_headline("فوري تعلن زيادة الإيرادات", ["FWRY"])
         self.assertEqual(result["headline_tone"], "إيجابية لغويًا فقط")
         self.assertEqual(result["direction"], "غير محسوم من العنوان وحده")
 
