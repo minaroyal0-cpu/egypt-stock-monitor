@@ -154,13 +154,16 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
 
     positive = any(_norm(term) in text for term in DIRECTION_TERMS["positive"])
     negative = any(_norm(term) in text for term in DIRECTION_TERMS["negative"])
-    direction = "مختلط/غير محسوم"
+    headline_tone = "محايدة/غير واضحة"
     if positive and not negative:
-        direction = "إشارة إيجابية محتملة"
+        headline_tone = "إيجابية لغويًا"
     elif negative and not positive:
-        direction = "إشارة سلبية محتملة"
+        headline_tone = "سلبية لغويًا"
     elif positive and negative:
-        direction = "مختلط"
+        headline_tone = "مختلطة"
+
+    # Headline sentiment is not a reliable proxy for the stock's economic impact.
+    direction = "غير محسوم من العنوان وحده"
 
     important = relevant and bool(applicable)
     if not important:
