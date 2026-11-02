@@ -7,6 +7,9 @@ import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
+from email.utils import parsedate_to_datetime
+
+from impact import analyze_headline
 
 ROOT = Path(__file__).resolve().parents[1]
 SEEN_FILE = ROOT / "seen.json"
@@ -91,7 +94,13 @@ def main():
             gathered[item["link"]] = item
 
     fresh = [item for link, item in gathered.items() if link not in seen]
-    # Newest-first where RSS date strings are available; stable fallback otherwise.
+    # Prefer the newest RSS items; malformed/missing dates sort to the end.
+    def published_key(item):
+        try:
+            return parsedate_to_datetime(item["published"]).timestamp()
+        except Exception:
+            return 0
+    fresh.sort(key=published_key, reverse=True)
     fresh = fresh[:MAX_ITEMS_PER_RUN]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -101,18 +110,24 @@ def main():
 
     for item in fresh:
         title = re.sub(r"\s+", " ", item["title"]).strip()
-        msg = (
-            "📡 Investor Intelligence — خبر جديد\n\n"
-            f"{title}\n\n"
-            f"المصدر التجميعي: {item['source']}\n"
-            f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
-            f"تم الفحص: {now}\n\n"
-            f"الرابط: {item['link']}\n\n"
-            "تنبيه: هذا رصد آلي أولي، وليس إفصاحًا موثقًا أو توصية استثمارية. افتح المصدر الأصلي وتحقق من الخبر قبل اتخاذ أي قرار."
-        )
-        telegram_send(msg[:3900])
+        impact = analyze_headline(title)
+        if impact["important"]:
+            msg = (
+                "📡 EGX Impact Intelligence — تنبيه مهم للمحفظة\n\n"
+                f"{title}\n\n"
+                f"{impact['analysis']}\n\n"
+                f"المصدر التجميعي: {item['source']}\n"
+                f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
+                f"تم الفحص: {now}\n\n"
+                f"الرابط: {item['link']}\n\n"
+                "مهم: الرصد مبني على عنوان RSS فقط. تحقق من المصدر الأصلي والإفصاح، ولا تعتبره توصية أو توقعًا لحركة السعر."
+            )
+            telegram_send(msg[:3900])
+            print(f"Alert sent: {title}")
+        else:
+            print(f"Skipped (not portfolio-relevant/important): {title}")
+        # Mark both alerted and filtered items as processed to avoid rescanning them forever.
         seen.add(item["link"])
-        print(f"Sent: {title}")
 
     # Save a bounded history; workflow commits this file back to the repository.
     ordered = list(seen_list)
