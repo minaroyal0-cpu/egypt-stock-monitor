@@ -109,17 +109,17 @@ def main():
         return
 
     for item in fresh:
-        title = re.sub(r"\\s+", " ", item["title"]).strip()
+        title = re.sub(r"\s+", " ", item["title"]).strip()
         impact = analyze_headline(title)
         if impact["important"]:
             msg = (
-                "📡 EGX Impact Intelligence — تنبيه مهم للمحفظة\\n\\n"
-                f"{title}\\n\\n"
-                f"{impact['analysis']}\\n\\n"
-                f"المصدر التجميعي: {item['source']}\\n"
-                f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\\n"
-                f"تم الفحص: {now}\\n\\n"
-                f"الرابط: {item['link']}\\n\\n"
+                "📡 EGX Impact Intelligence — تنبيه مهم للمحفظة\n\n"
+                f"{title}\n\n"
+                f"{impact['analysis']}\n\n"
+                f"المصدر التجميعي: {item['source']}\n"
+                f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
+                f"تم الفحص: {now}\n\n"
+                f"الرابط: {item['link']}\n\n"
                 "مهم: الرصد مبني على عنوان RSS فقط. تحقق من المصدر الأصلي والإفصاح، ولا تعتبره توصية أو توقعًا لحركة السعر."
             )
             telegram_send(msg[:3900])
