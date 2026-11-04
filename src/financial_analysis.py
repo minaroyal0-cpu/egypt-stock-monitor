@@ -1,15 +1,27 @@
-"""Transparent fundamental ratios. Inputs must be normalized to one reporting period/currency."""
-from .data_quality import as_number
+"""Transparent fundamental ratios with an attached data-readiness assessment."""
+from .data_quality import as_number, assess_record_quality
+
 
 def safe_div(a, b):
     a, b = as_number(a), as_number(b)
     return a / b if a is not None and b not in (None, 0) else None
 
-def analyze_fundamentals(row):
+
+def analyze_fundamentals(row, analysis_date=None, max_age_days=None):
+    """Calculate ratios and attach explainable data-quality metadata.
+
+    Ratios remain available for research continuity, but callers and reports
+    receive a quality decision so incomplete/stale inputs are not presented
+    as fully trusted. Freshness is never inferred without analysis_date.
+    """
     required = ("revenue", "gross_profit", "operating_profit", "net_income", "total_assets", "total_equity")
     missing = [key for key in required if as_number(row.get(key)) is None]
     if missing:
         raise ValueError("Missing or invalid required financial fields: " + ", ".join(missing))
+    quality = assess_record_quality(
+        row, record_type="financial", analysis_date=analysis_date,
+        max_age_days=max_age_days,
+    )
     revenue, gross = as_number(row["revenue"]), as_number(row["gross_profit"])
     operating, net = as_number(row["operating_profit"]), as_number(row["net_income"])
     assets, equity = as_number(row["total_assets"]), as_number(row["total_equity"])
@@ -33,4 +45,5 @@ def analyze_fundamentals(row):
         "source": row.get("source"), "source_url": row.get("source_url"),
         "period": row.get("period"), "currency": row.get("currency"),
         "data_status": row.get("data_status", "user_supplied"),
+        "data_quality": quality,
     }
