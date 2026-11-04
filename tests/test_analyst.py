@@ -36,6 +36,8 @@ class AnalystTests(unittest.TestCase):
         report = build_report("TEST")
         self.assertIn("not supplied", report)
         self.assertIn("not a buy/sell", report)
+        self.assertIn("Historical risk diagnostics", report)
+        self.assertIn("Not calculated", report)
 
 if __name__ == "__main__":
     unittest.main()

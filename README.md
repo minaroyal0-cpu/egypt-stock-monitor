@@ -88,3 +88,8 @@ The EGID command requires a vendor-issued `EGID_BEARER_TOKEN` and confirmation t
 ## Corporate actions and adjusted technical indicators
 
 Import sourced dividends, splits, bonus issues, and rights issues with the corporate-actions template. Raw prices are never overwritten. Adjusted OHLC is calculated separately using explicit event data and reference prices. For long histories, use `get_adjusted_price_history` with `analyze_price_history`; the technical analyzer does not silently fall back to raw closes.
+
+
+## Historical risk diagnostics
+
+The analyst includes historical volatility, maximum drawdown, historical VaR/CVaR and portfolio position-size concentration. These are backward-looking, not forecasts. See [risk methodology](docs/risk.md) and run `python -m src.db_cli risk SYMBOL` after importing verified daily prices and corporate actions.

@@ -1,5 +1,5 @@
-"""Markdown report formatter with explicit source and uncertainty labels."""
-def build_report(company, fundamentals=None, valuation=None, technical=None, provenance=None, risks=None):
+"""Markdown report formatter with explicit source, risk and uncertainty labels."""
+def build_report(company, fundamentals=None, valuation=None, technical=None, provenance=None, risks=None, historical_risk=None):
     sections = [f"# Equity research snapshot: {company}",
                 "> Educational research output, not a buy/sell instruction.",
                 "## Data quality and provenance"]
@@ -15,7 +15,12 @@ def build_report(company, fundamentals=None, valuation=None, technical=None, pro
             sections.append("Not calculated: required data was not supplied.")
         else:
             sections.extend(f"- {key}: {value}" for key, value in data.items())
+    sections.append("## Historical risk diagnostics")
+    if not historical_risk:
+        sections.append("Not calculated: sufficient sourced price history was not supplied.")
+    else:
+        sections.extend(f"- {key}: {value}" for key, value in historical_risk.items())
     sections.append("## Key risks")
     sections.extend("- " + str(item) for item in (risks or ["No risk review supplied; this is not evidence of low risk."]))
-    sections.append("## Limitations\nMissing inputs are not treated as zero. Estimates depend on stated assumptions; verify figures against official disclosures.")
+    sections.append("## Limitations\nMissing inputs are not treated as zero. Estimates depend on stated assumptions; historical risk is not a forecast. Verify figures against official disclosures.")
     return "\n".join(sections) + "\n"
