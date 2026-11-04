@@ -32,7 +32,7 @@ Official reference pages:
 - FRA: https://fra.gov.eg/en/press-releases/
 - EGID: https://www.egidegypt.com/
 
-The current version does not automatically ingest EGX/FRA disclosures or live prices. EGID publishes API documentation for delayed and other market-data feeds, but access terms, credentials, usage rights, and rate limits have not yet been confirmed. No live data connection is claimed. See [docs/data_sources.md](docs/data_sources.md).
+EGID publishes a Swagger API with delayed-feed endpoints. A restricted client scaffold is included, but the repository has no EGID-issued credentials and no verified data-use agreement. It does not claim a live data connection. See [docs/data_sources.md](docs/data_sources.md).
 
 ## Important analytical limits
 
@@ -76,15 +76,14 @@ python -m src.db_cli summary
 
 The database defaults to `data/egx_history.sqlite3`. It stores records you supply; it does not create live market data or connect to a broker.
 
-## Source registry
+## Source registry and EGID delayed-feed scaffold
 
-Inspect registered sources and connection readiness:
 ```bash
 python -m src.source_cli
-python -m src.source_cli --check-url https://beta.egx.com.eg/en
+python -m src.egid_cli --endpoint /api/DelayedFeed/getEGXMarketWatch
 ```
 
-The registry distinguishes public reference pages from authorized automated feeds. A URL matching a registered domain does not prove that a particular document is authentic.
+The EGID command requires a vendor-issued `EGID_BEARER_TOKEN` and confirmation that automated use is permitted. It returns raw, unnormalized JSON and does not import it into the analyst database.
 
 ## Corporate actions and adjusted technical indicators
 
