@@ -20,7 +20,7 @@ reasonable freshness.
 | Period/basis or event/price date | 10 |
 | Freshness against an explicit analysis date | 30 |
 
-Source-status points: official 30, third_party 22, user_supplied 14, estimate 6.
+Source-status points: official 26, third_party 20, user_supplied 12, estimate 5.
 This is a declared classification, not independent verification of the publisher.
 
 ## Decisions

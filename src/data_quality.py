@@ -6,10 +6,10 @@ from datetime import date
 from urllib.parse import urlparse
 
 SOURCE_POINTS = {
-    "official": 30,
-    "third_party": 22,
-    "user_supplied": 14,
-    "estimate": 6,
+    "official": 26,
+    "third_party": 20,
+    "user_supplied": 12,
+    "estimate": 5,
 }
 DEFAULT_MAX_AGE_DAYS = {"financial": 550, "prices": 7, "actions": 550}
 
