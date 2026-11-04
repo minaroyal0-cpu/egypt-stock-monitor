@@ -58,7 +58,7 @@ def normalize_financial_row(row):
     if not re.fullmatch(r"[A-Z]{3}", row["currency"].upper()):
         raise ValueError("currency_must_be_3_letter_code")
     row["currency"] = row["currency"].upper()
-    if not (re.fullmatch(r"\d{4}", row["period"]) or re.fullmatch(r"\d{4}-Q[1-4]", row["period"]) or re.fullmatch(r"\d{4}-\\d{2}", row["period"]) or re.fullmatch(r"\d{4}-\\d{2}-\\d{2}", row["period"])):
+    if not re.fullmatch(r"^\d{4}(-Q[1-4]|-\d{2}(-\d{2})?)?$", row["period"]):
         raise ValueError("period_must_be_YYYY_or_YYYY-Qn_or_YYYY-MM_or_YYYY-MM-DD")
     _validate_source(row)
     for field in FINANCIAL_NUMBERS:
