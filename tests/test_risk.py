@@ -26,6 +26,22 @@ class RiskTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             historical_risk([100, 0, 101])
 
+    def test_non_finite_prices_rejected(self):
+        for bad in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=bad):
+                with self.assertRaises(ValueError):
+                    historical_risk([100, bad, 101])
+
+    def test_non_finite_position_values_rejected(self):
+        for bad in (float("nan"), float("inf"), float("-inf")):
+            with self.subTest(value=bad):
+                with self.assertRaises(ValueError):
+                    portfolio_concentration({"ABUK": bad})
+
+    def test_empty_position_symbol_rejected(self):
+        with self.assertRaises(ValueError):
+            portfolio_concentration({"   ": 100})
+
     def test_portfolio_concentration(self):
         result = portfolio_concentration({"ABUK": 75, "FWRY": 25})
         self.assertAlmostEqual(result["weights"]["ABUK"], 0.75)
