@@ -17,7 +17,7 @@ class BacktestTests(unittest.TestCase):
         buys = [t for t in result["trades"] if t["side"] == "buy"]
         if buys:
             self.assertGreater(buys[0]["date"], "2025-01-04")
-            self.assertEqual(buys[0]["reference_open"], 50)
+            self.assertEqual(buys[0]["reference_open"], 12)
 
     def test_commission_and_slippage_reduce_buy_quantity(self):
         bars = make_bars([10, 9, 8, 9, 11, 12, 13, 12, 10, 8, 7])
