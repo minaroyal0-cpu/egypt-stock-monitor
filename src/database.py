@@ -58,9 +58,16 @@ def get_best_financial(db_path,symbol,period,basis,currency=None):
     q="""SELECT payload_json FROM financial_observations WHERE symbol=? AND period=? AND basis=?"""
     args=[symbol.upper(),period,basis]
     if currency: q+=" AND currency=?"; args.append(currency.upper())
-    q+=""" ORDER BY CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
-    WHEN 'user_supplied' THEN 2 WHEN 'estimate' THEN 1 ELSE 0 END DESC,as_of DESC,id DESC LIMIT 1"""
-    with connect(db_path) as conn: row=conn.execute(q,args).fetchone()
+    with connect(db_path) as conn:
+        if currency is None:
+            currencies=[r[0] for r in conn.execute(
+                "SELECT DISTINCT currency FROM financial_observations WHERE symbol=? AND period=? AND basis=?",
+                args[:3]).fetchall()]
+            if len(currencies)>1:
+                raise ValueError("currency_required_when_multiple_currencies")
+        q+=""" ORDER BY CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
+        WHEN 'user_supplied' THEN 2 WHEN 'estimate' THEN 1 ELSE 0 END DESC,as_of DESC,id DESC LIMIT 1"""
+        row=conn.execute(q,args).fetchone()
     return json.loads(row["payload_json"]) if row else None
 
 def _best_rows(rows,keys):
@@ -75,20 +82,20 @@ def get_price_history(db_path,symbol,start_date=None,end_date=None,currency=None
     if start_date: q+=" AND date>=?"; args.append(start_date)
     if end_date: q+=" AND date<=?"; args.append(end_date)
     if currency: q+=" AND currency=?"; args.append(currency.upper())
-    q+=""" ORDER BY date ASC,CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
+    q+=""" ORDER BY date ASC,currency ASC,CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
     WHEN 'user_supplied' THEN 2 WHEN 'estimate' THEN 1 ELSE 0 END DESC,as_of DESC,id DESC"""
     with connect(db_path) as conn: rows=conn.execute(q,args).fetchall()
-    return _best_rows(rows,("date",))
+    return _best_rows(rows,("date","currency"))
 
 def get_corporate_actions(db_path,symbol,start_date=None,end_date=None,currency=None):
     q="SELECT * FROM corporate_actions WHERE symbol=?"; args=[symbol.upper()]
     if start_date: q+=" AND ex_date>=?"; args.append(start_date)
     if end_date: q+=" AND ex_date<=?"; args.append(end_date)
     if currency: q+=" AND currency=?"; args.append(currency.upper())
-    q+=""" ORDER BY ex_date ASC,CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
+    q+=""" ORDER BY ex_date ASC,currency ASC,action_type ASC,CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
     WHEN 'user_supplied' THEN 2 WHEN 'estimate' THEN 1 ELSE 0 END DESC,as_of DESC,id DESC"""
     with connect(db_path) as conn: rows=conn.execute(q,args).fetchall()
-    return _best_rows(rows,("ex_date","action_type"))
+    return _best_rows(rows,("ex_date","action_type","currency"))
 
 def adjustment_factor(action):
     """Return backward price factor. reference_close must be the prior cum-right/entitlement close."""
@@ -112,21 +119,24 @@ def adjustment_factor(action):
     return factor
 
 def get_adjusted_price_history(db_path,symbol,start_date=None,end_date=None,currency=None):
-    """Adjust historical OHLC backward for later verified actions; raw observations remain untouched."""
+    """Return backward-adjusted OHLC and adjusted_close as of end_date; raw observations stay unchanged."""
     prices=get_price_history(db_path,symbol,start_date,end_date,currency)
-    actions=get_corporate_actions(db_path,symbol,currency=currency)
+    actions=get_corporate_actions(db_path,symbol,end_date=end_date,currency=currency)
     result=[]
     for bar in prices:
         factor=1.0; applied=[]
         for action in actions:
-            if action["ex_date"]>bar["date"]:
-                f=adjustment_factor(action); factor*=f; applied.append({"ex_date":action["ex_date"],"type":action["action_type"],"factor":f})
+            if action["currency"]==bar["currency"] and action["ex_date"]>bar["date"]:
+                f=adjustment_factor(action); factor*=f
+                applied.append({"ex_date":action["ex_date"],"type":action["action_type"],"factor":f})
         adjusted=dict(bar)
         for field in ("open","high","low","close"):
             if bar.get(field) is not None: adjusted["adjusted_"+field]=float(bar[field])*factor
+        adjusted["adjusted_close"]=float(bar["close"])*factor
         adjusted["corporate_action_factor"]=factor
         adjusted["applied_actions"]=applied
         adjusted["adjustment_method"]="backward_price_adjustment_from_verified_events"
+        adjusted["adjustment_as_of"]=end_date or (actions[-1]["ex_date"] if actions else bar["date"])
         result.append(adjusted)
     return result
 

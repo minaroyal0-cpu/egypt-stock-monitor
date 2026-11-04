@@ -2,7 +2,8 @@ import csv
 import tempfile
 import unittest
 from pathlib import Path
-from src.database import store_records, get_best_financial, get_price_history, database_summary
+from src.database import (store_records, get_best_financial, get_price_history,
+    get_adjusted_price_history, database_summary)
 from src.db_cli import import_csv
 
 FIN_BASE = {"symbol":"ABUK","company":"Abu Qir","period":"2025","currency":"EGP","basis":"consolidated",
@@ -35,15 +36,40 @@ class DatabaseTests(unittest.TestCase):
             store_records(db, "financial", [official, estimate])
             self.assertEqual(get_best_financial(db, "ABUK", "2025", "consolidated")["revenue"], 1000)
 
-    def test_price_history_keeps_one_best_row_per_day(self):
+    def test_financial_lookup_requires_currency_if_ambiguous(self):
+        with tempfile.TemporaryDirectory() as folder:
+            db = str(Path(folder) / "history.sqlite3")
+            usd = dict(FIN_BASE, currency="USD")
+            store_records(db, "financial", [FIN_BASE, usd])
+            with self.assertRaisesRegex(ValueError, "currency_required"):
+                get_best_financial(db, "ABUK", "2025", "consolidated")
+            self.assertEqual(get_best_financial(db, "ABUK", "2025", "consolidated", "USD")["currency"], "USD")
+
+    def test_price_history_keeps_one_best_row_per_day_and_currency(self):
         with tempfile.TemporaryDirectory() as folder:
             db = str(Path(folder) / "history.sqlite3")
             official = dict(PRICE, data_status="official", source="EGX bulletin",
                             source_url="https://egx.example/prices", close=11.5)
-            store_records(db, "prices", [PRICE, official])
+            usd = dict(PRICE, currency="USD", close=10.5)
+            store_records(db, "prices", [PRICE, official, usd])
             rows = get_price_history(db, "ABUK")
-            self.assertEqual(len(rows), 1)
-            self.assertEqual(rows[0]["close"], 11.5)
+            self.assertEqual(len(rows), 2)
+            egp = next(row for row in rows if row["currency"]=="EGP")
+            self.assertEqual(egp["close"], 11.5)
+
+    def test_adjusted_close_is_created_and_future_actions_are_capped_at_as_of(self):
+        with tempfile.TemporaryDirectory() as folder:
+            db = str(Path(folder) / "history.sqlite3")
+            store_records(db, "prices", [PRICE])
+            action = {"symbol":"ABUK","ex_date":"2026-11-05","currency":"EGP",
+                "action_type":"split","new_shares_per_old_share":2,"source":"issuer",
+                "source_url":"https://issuer.example/action","data_status":"official",
+                "as_of":"2026-11-04"}
+            store_records(db, "actions", [action])
+            before_event = get_adjusted_price_history(db,"ABUK",end_date="2026-11-04",currency="EGP")
+            after_event = get_adjusted_price_history(db,"ABUK",end_date="2026-11-06",currency="EGP")
+            self.assertEqual(before_event[0]["adjusted_close"],11)
+            self.assertEqual(after_event[0]["adjusted_close"],5.5)
 
     def test_csv_import_tracks_valid_and_rejected_rows(self):
         with tempfile.TemporaryDirectory() as folder:
