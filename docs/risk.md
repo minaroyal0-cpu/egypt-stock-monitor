@@ -33,3 +33,14 @@ print(concentration)
 ```
 
 All outputs are educational historical diagnostics, not forecasts or buy/sell instructions.
+
+## Historical risk CLI
+
+After importing a licensed/verified daily-price CSV and the relevant corporate actions:
+
+```bash
+python -m src.db_cli risk ABUK --start 2025-01-01 --end 2025-12-31
+python -m src.db_cli concentration '{"ABUK":750,"FWRY":250}'
+```
+
+The risk command uses the locally derived backward-adjusted close series. It requires at least three sourced price observations. Historical volatility, drawdown, VaR and CVaR are backward-looking diagnostics, not forecasts or maximum-loss guarantees. Position concentration measures size only, not correlation or liquidity.

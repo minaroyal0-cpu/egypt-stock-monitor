@@ -1,7 +1,8 @@
-"""SQLite commands for historical EGX research data."""
+"""SQLite commands for sourced EGX research data and historical risk diagnostics."""
 import argparse,csv,json
-from .database import connect,store_records,record_ingestion_result,database_summary
+from .database import connect,store_records,record_ingestion_result,database_summary,get_adjusted_price_history
 from .ingestion import normalize_financial_row,normalize_price_row,normalize_action_row
+from .risk import historical_risk,portfolio_concentration
 
 def import_csv(db_path,input_path,kind):
     normalizers={"financial":normalize_financial_row,"prices":normalize_price_row,"actions":normalize_action_row}
@@ -21,9 +22,23 @@ def main():
     init=sub.add_parser("init"); init.add_argument("--db",default="data/egx_history.sqlite3")
     imp=sub.add_parser("import"); imp.add_argument("kind",choices=("financial","prices","actions")); imp.add_argument("input_csv"); imp.add_argument("--db",default="data/egx_history.sqlite3")
     summary=sub.add_parser("summary"); summary.add_argument("--db",default="data/egx_history.sqlite3")
+    risk=sub.add_parser("risk",help="Historical risk metrics for one symbol")
+    risk.add_argument("symbol"); risk.add_argument("--start"); risk.add_argument("--end")
+    risk.add_argument("--periods-per-year",type=int,default=252); risk.add_argument("--db",default="data/egx_history.sqlite3")
+    concentration=sub.add_parser("concentration",help="Position-size concentration from a JSON object")
+    concentration.add_argument("positions_json",help='Example: \'{"ABUK":750,"FWRY":250}\'')
     args=parser.parse_args()
     if args.command=="init": connect(args.db).close(); result={"initialized":True,"database":args.db}
     elif args.command=="import": result=import_csv(args.db,args.input_csv,args.kind)
+    elif args.command=="risk":
+        bars=get_adjusted_price_history(args.db,args.symbol,args.start,args.end)
+        if len(bars)<3: raise SystemExit("Insufficient sourced price history: at least 3 adjusted closes are required.")
+        result={"symbol":args.symbol.upper(),"price_basis":"backward_adjusted_close","risk":historical_risk([bar["adjusted_close"] for bar in bars],args.periods_per_year)}
+    elif args.command=="concentration":
+        try: positions=json.loads(args.positions_json)
+        except json.JSONDecodeError as exc: raise SystemExit("positions_json must be a valid JSON object") from exc
+        if not isinstance(positions,dict): raise SystemExit("positions_json must be a JSON object")
+        result=portfolio_concentration(positions)
     else: result=database_summary(args.db)
     print(json.dumps(result,ensure_ascii=False,indent=2))
     if args.command=="import" and result["rejected"]: raise SystemExit(2)
