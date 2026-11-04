@@ -63,9 +63,11 @@ def get_best_financial(db_path,symbol,period,basis,currency=None):
     with connect(db_path) as conn: row=conn.execute(q,args).fetchone()
     return json.loads(row["payload_json"]) if row else None
 
-def _best_rows(rows,key):
+def _best_rows(rows,keys):
     chosen={}
-    for row in rows: chosen.setdefault(row[key],json.loads(row["payload_json"]))
+    for row in rows:
+        identity=tuple(row[key] for key in keys)
+        chosen.setdefault(identity,json.loads(row["payload_json"]))
     return [chosen[k] for k in sorted(chosen)]
 
 def get_price_history(db_path,symbol,start_date=None,end_date=None,currency=None):
@@ -76,7 +78,7 @@ def get_price_history(db_path,symbol,start_date=None,end_date=None,currency=None
     q+=""" ORDER BY date ASC,CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
     WHEN 'user_supplied' THEN 2 WHEN 'estimate' THEN 1 ELSE 0 END DESC,as_of DESC,id DESC"""
     with connect(db_path) as conn: rows=conn.execute(q,args).fetchall()
-    return _best_rows(rows,"date")
+    return _best_rows(rows,("date",))
 
 def get_corporate_actions(db_path,symbol,start_date=None,end_date=None,currency=None):
     q="SELECT * FROM corporate_actions WHERE symbol=?"; args=[symbol.upper()]
@@ -86,7 +88,7 @@ def get_corporate_actions(db_path,symbol,start_date=None,end_date=None,currency=
     q+=""" ORDER BY ex_date ASC,CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
     WHEN 'user_supplied' THEN 2 WHEN 'estimate' THEN 1 ELSE 0 END DESC,as_of DESC,id DESC"""
     with connect(db_path) as conn: rows=conn.execute(q,args).fetchall()
-    return _best_rows(rows,"ex_date")
+    return _best_rows(rows,("ex_date","action_type"))
 
 def adjustment_factor(action):
     """Return backward price factor. reference_close must be the prior cum-right/entitlement close."""
