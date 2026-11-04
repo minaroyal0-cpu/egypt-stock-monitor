@@ -6,13 +6,13 @@ currency, adjustment basis, and frequency.
 """
 from __future__ import annotations
 
-from math import sqrt
+from math import isfinite, sqrt
 from statistics import mean, stdev
 
 
 def _positive_prices(prices):
     values = [float(value) for value in prices]
-    if any(value <= 0 for value in values):
+    if any(not isfinite(value) or value <= 0 for value in values):
         raise ValueError("prices must be positive")
     return values
 
@@ -70,10 +70,15 @@ def portfolio_concentration(position_values):
     cleaned = {}
     for symbol, raw_value in position_values.items():
         value = float(raw_value)
+        if not isfinite(value):
+            raise ValueError("position values must be finite")
         if value < 0:
             raise ValueError("position values cannot be negative")
         if value:
-            cleaned[str(symbol).upper()] = cleaned.get(str(symbol).upper(), 0.0) + value
+            normalized_symbol = str(symbol).strip().upper()
+            if not normalized_symbol:
+                raise ValueError("position symbols cannot be empty")
+            cleaned[normalized_symbol] = cleaned.get(normalized_symbol, 0.0) + value
     total = sum(cleaned.values())
     if total <= 0:
         raise ValueError("at least one positive position value is required")
