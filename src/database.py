@@ -23,6 +23,11 @@ CREATE TABLE IF NOT EXISTS corporate_actions (
  data_status TEXT NOT NULL, as_of TEXT NOT NULL, record_hash TEXT NOT NULL UNIQUE,
  payload_json TEXT NOT NULL, ingested_at TEXT NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_actions_lookup ON corporate_actions(symbol,ex_date,currency);
+CREATE TABLE IF NOT EXISTS quote_snapshots (
+ id INTEGER PRIMARY KEY AUTOINCREMENT, symbol TEXT NOT NULL, currency TEXT NOT NULL,
+ quote_timestamp TEXT NOT NULL, source TEXT NOT NULL, record_hash TEXT NOT NULL UNIQUE,
+ payload_json TEXT NOT NULL, ingested_at TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_quote_snapshots_lookup ON quote_snapshots(symbol,quote_timestamp);
 CREATE TABLE IF NOT EXISTS ingestion_runs (
  id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, input_name TEXT NOT NULL,
  accepted INTEGER NOT NULL, rejected INTEGER NOT NULL, created_at TEXT NOT NULL);
@@ -54,6 +59,24 @@ def store_records(db_path,kind,records,input_name="manual"):
             inserted += conn.execute(sql,values).rowcount
     return {"inserted":inserted,"duplicates":len(records)-inserted}
 
+def store_quote_snapshot(db_path, quote):
+    required=("symbol","price","currency","timestamp","source","data_status")
+    if any(quote.get(key) in (None,"") for key in required):
+        raise ValueError("quote_snapshot_missing_required_fields")
+    if quote.get("historical_ohlcv_eligible") is not False:
+        raise ValueError("quote_snapshot_must_not_be_marked_as_historical_ohlcv")
+    digest=_hash(quote); payload=json.dumps(quote,ensure_ascii=False,sort_keys=True)
+    with connect(db_path) as conn:
+        cur=conn.execute(
+            "INSERT OR IGNORE INTO quote_snapshots(symbol,currency,quote_timestamp,source,record_hash,payload_json,ingested_at) VALUES(?,?,?,?,?,?,?)",
+            (quote["symbol"],quote["currency"],quote["timestamp"],quote["source"],digest,payload,datetime.now(timezone.utc).isoformat()))
+        return {"inserted":cur.rowcount,"duplicate":cur.rowcount==0}
+
+def get_latest_quote(db_path,symbol):
+    with connect(db_path) as conn:
+        row=conn.execute("SELECT payload_json FROM quote_snapshots WHERE symbol=? ORDER BY quote_timestamp DESC,id DESC LIMIT 1",(symbol.upper(),)).fetchone()
+    return json.loads(row["payload_json"]) if row else None
+
 def get_best_financial(db_path,symbol,period,basis,currency=None):
     q="""SELECT payload_json FROM financial_observations WHERE symbol=? AND period=? AND basis=?"""
     args=[symbol.upper(),period,basis]
@@ -63,8 +86,7 @@ def get_best_financial(db_path,symbol,period,basis,currency=None):
             currencies=[r[0] for r in conn.execute(
                 "SELECT DISTINCT currency FROM financial_observations WHERE symbol=? AND period=? AND basis=?",
                 args[:3]).fetchall()]
-            if len(currencies)>1:
-                raise ValueError("currency_required_when_multiple_currencies")
+            if len(currencies)>1: raise ValueError("currency_required_when_multiple_currencies")
         q+=""" ORDER BY CASE data_status WHEN 'official' THEN 4 WHEN 'third_party' THEN 3
         WHEN 'user_supplied' THEN 2 WHEN 'estimate' THEN 1 ELSE 0 END DESC,as_of DESC,id DESC LIMIT 1"""
         row=conn.execute(q,args).fetchone()
@@ -98,7 +120,6 @@ def get_corporate_actions(db_path,symbol,start_date=None,end_date=None,currency=
     return _best_rows(rows,("ex_date","action_type","currency"))
 
 def adjustment_factor(action):
-    """Return backward price factor. reference_close must be the prior cum-right/entitlement close."""
     kind=action["action_type"]
     if kind=="split": factor=1.0/float(action["new_shares_per_old_share"])
     elif kind=="bonus_issue": factor=1.0/(1.0+float(action["bonus_shares_per_old_share"]))
@@ -112,14 +133,12 @@ def adjustment_factor(action):
         elif kind=="rights_issue":
             ratio=float(action["rights_per_old_share"]); sub=float(action["subscription_price"])
             if ratio<=0 or sub<0: raise ValueError("invalid rights ratio or subscription price")
-            terp=(close+ratio*sub)/(1.0+ratio)
-            factor=terp/close
+            terp=(close+ratio*sub)/(1.0+ratio); factor=terp/close
         else: raise ValueError("unsupported corporate action type")
-    if not 0 < factor <= 1.5: raise ValueError("corporate action factor outside safety bounds; verify event inputs")
+    if not 0 < factor <= 1.5: raise ValueError("corporate action factor outside safety bounds; verify corporate event inputs")
     return factor
 
 def get_adjusted_price_history(db_path,symbol,start_date=None,end_date=None,currency=None):
-    """Return backward-adjusted OHLC and adjusted_close as of end_date; raw observations stay unchanged."""
     prices=get_price_history(db_path,symbol,start_date,end_date,currency)
     actions=get_corporate_actions(db_path,symbol,end_date=end_date,currency=currency)
     result=[]
@@ -148,4 +167,4 @@ def record_ingestion_result(db_path,kind,input_name,accepted,rejected):
 def database_summary(db_path):
     with connect(db_path) as conn:
         return {table:conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
-                for table in ("financial_observations","price_observations","corporate_actions","ingestion_runs")}
+                for table in ("financial_observations","price_observations","corporate_actions","quote_snapshots","ingestion_runs")}
