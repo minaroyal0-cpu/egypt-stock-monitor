@@ -50,3 +50,12 @@ There is no Anthropic API integration in this version. A Claude chat subscriptio
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+
+## Financial and market-data ingestion (first version)
+
+- Import sourced financial-statement CSVs: `python -m src.ingest_cli financial INPUT.csv OUTPUT.jsonl`
+- Import sourced daily OHLCV CSVs: `python -m src.ingest_cli prices INPUT.csv OUTPUT.jsonl`
+- Use the templates in `data/templates/` and read `docs/data_pipeline.md` before importing.
+- Every row must include provenance and a source URL. Invalid rows are reported, not silently accepted.
+- No live EGX feed or automatic disclosure scraper is enabled in this version; vendor licensing and source verification remain explicit requirements.
