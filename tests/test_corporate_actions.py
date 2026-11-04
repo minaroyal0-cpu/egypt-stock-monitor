@@ -43,4 +43,15 @@ class CorporateActionTests(unittest.TestCase):
             self.assertEqual(store_records(db,"actions",[a])["inserted"],0)
             self.assertEqual(database_summary(db)["corporate_actions"],1)
 
+    def test_multiple_action_types_on_same_ex_date_are_both_applied(self):
+        with tempfile.TemporaryDirectory() as d:
+            db=str(Path(d)/"db.sqlite3")
+            store_records(db,"prices",[BASE])
+            split=action("split","2025-02-01",new_shares_per_old_share="2")
+            dividend=action("cash_dividend","2025-02-01",cash_per_share="5",reference_close="100")
+            store_records(db,"actions",[split,dividend])
+            rows=get_adjusted_price_history(db,"ABUK")
+            self.assertEqual(len(rows[0]["applied_actions"]),2)
+            self.assertAlmostEqual(rows[0]["corporate_action_factor"],0.5*0.95)
+
 if __name__=="__main__": unittest.main()

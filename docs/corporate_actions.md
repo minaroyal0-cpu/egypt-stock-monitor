@@ -39,3 +39,17 @@ python -m src.db_cli init
 python -m src.db_cli import actions data/corporate_actions.csv
 python -m src.db_cli summary
 ```
+
+## Technical-indicator integration
+
+For long-run indicators, use the adjusted bars rather than raw closes:
+
+```python
+from src.database import get_adjusted_price_history
+from src.technical import analyze_price_history
+
+bars = get_adjusted_price_history("data/egx_history.sqlite3", "ABUK")
+indicators = analyze_price_history(bars)  # defaults to adjusted_close
+```
+
+The helper requires chronological, unique dates and a populated positive price field. It does not silently fall back to raw close when adjusted prices are missing.
