@@ -29,6 +29,32 @@ class IngestionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             normalize_price_row(dict(PRICE, high="10"))
 
+    def test_same_symbol_date_in_different_currencies_is_not_duplicate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "prices.csv"
+            output = Path(folder) / "prices.jsonl"
+            with source.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(PRICE))
+                writer.writeheader()
+                writer.writerow(PRICE)
+                writer.writerow(dict(PRICE, currency="USD"))
+            result = ingest_csv(source, output, "prices")
+            self.assertEqual(result["accepted"], 2)
+            self.assertEqual(result["rejected"], [])
+
+    def test_same_financial_period_in_different_currencies_is_not_duplicate(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / "financials.csv"
+            output = Path(folder) / "financials.jsonl"
+            with source.open("w", newline="", encoding="utf-8") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(FIN))
+                writer.writeheader()
+                writer.writerow(FIN)
+                writer.writerow(dict(FIN, currency="USD"))
+            result = ingest_csv(source, output, "financial")
+            self.assertEqual(result["accepted"], 2)
+            self.assertEqual(result["rejected"], [])
+
     def test_csv_ingestion_reports_rejected_rows(self):
         with tempfile.TemporaryDirectory() as folder:
             source = Path(folder) / "input.csv"

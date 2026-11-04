@@ -91,9 +91,9 @@ def ingest_csv(input_path,output_path,kind):
         for line_no,row in enumerate(csv.DictReader(handle),start=2):
             try:
                 record=normalizer(row)
-                key=((record["symbol"],record["period"],record["basis"]) if kind=="financial" else
-                     (record["symbol"],record["date"]) if kind=="prices" else
-                     (record["symbol"],record["ex_date"],record["action_type"]))
+                key=((record["symbol"],record["period"],record["basis"],record["currency"]) if kind=="financial" else
+                     (record["symbol"],record["date"],record["currency"]) if kind=="prices" else
+                     (record["symbol"],record["ex_date"],record["action_type"],record["currency"]))
                 if key in seen: raise ValueError("duplicate_record_in_input")
                 seen.add(key); accepted.append(record)
             except (ValueError,TypeError) as exc: rejected.append({"line":line_no,"error":str(exc)})
