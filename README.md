@@ -59,3 +59,17 @@ python -m unittest discover -s tests -v
 - Use the templates in `data/templates/` and read `docs/data_pipeline.md` before importing.
 - Every row must include provenance and a source URL. Invalid rows are reported, not silently accepted.
 - No live EGX feed or automatic disclosure scraper is enabled in this version; vendor licensing and source verification remain explicit requirements.
+
+
+## Historical SQLite database (new)
+
+The analyst branch now includes an append-only local SQLite store for sourced financial statements and daily OHLCV observations. It preserves multiple source observations, ranks official data ahead of third-party, user-supplied, and estimate records, and makes identical imports idempotent.
+
+```bash
+python -m src.db_cli init
+python -m src.db_cli import financial data/your_financials.csv
+python -m src.db_cli import prices data/your_prices.csv
+python -m src.db_cli summary
+```
+
+The database defaults to `data/egx_history.sqlite3`. Use `--db path/to/file.sqlite3` to select another location. See `docs/database.md` for the storage policy and limitations. The database stores only records you supply; it does not create live market data or connect to a broker.
