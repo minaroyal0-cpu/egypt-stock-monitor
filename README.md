@@ -73,3 +73,7 @@ python -m src.db_cli summary
 ```
 
 The database defaults to `data/egx_history.sqlite3`. Use `--db path/to/file.sqlite3` to select another location. See `docs/database.md` for the storage policy and limitations. The database stores only records you supply; it does not create live market data or connect to a broker.
+
+## Corporate actions and price adjustments
+
+Import sourced dividends, splits, bonus issues, and rights issues with `python -m src.db_cli import actions data/corporate_actions.csv`. The event template is `data/templates/corporate_actions.csv`; formulas, assumptions, unsupported event types, and safeguards are documented in `docs/corporate_actions.md`. Raw prices are never overwritten. Adjusted OHLC is calculated separately from event data with explicit reference prices. Do not mix vendor-adjusted prices with the internally adjusted series.
