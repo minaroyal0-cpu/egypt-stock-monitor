@@ -1,6 +1,6 @@
 # EGX Impact Intelligence
 
-A free, conservative EGX news monitor for a configurable watchlist. It discovers headlines, maps them to portfolio companies or relevant sectors, and sends Telegram alerts only when a rule finds a plausible connection.
+A free, conservative EGX news monitor and financial-analysis foundation. It discovers headlines, maps them to portfolio companies or relevant sectors, and sends Telegram alerts only when a rule finds a plausible connection.
 
 ## What it does
 
@@ -25,12 +25,14 @@ Then enable GitHub Actions. Use the **Investor Intelligence RSS Monitor** workfl
 
 ## Source quality and verification
 
-Google News RSS is a discovery layer, not an official disclosure source. An alert must be checked against the original publisher and, where relevant, the Egyptian Exchange (EGX) disclosure page or the Financial Regulatory Authority (FRA). Official reference pages:
-- EGX beta website and disclosure/news center: https://beta.egx.com.eg/en
-- FRA press releases: https://fra.gov.eg/en/press-releases/
-- FRA capital-market overview: https://fra.gov.eg/en/سوق-المال/
+Google News RSS is a discovery layer, not an official disclosure source. An alert must be checked against the original publisher and, where relevant, the Egyptian Exchange (EGX) disclosure page or the Financial Regulatory Authority (FRA).
 
-The current version does **not** yet ingest the EGX/FRA sites directly or verify a news story against an official filing. It also does not fetch live prices, financial statements, valuation multiples, cash flows, or insider transactions.
+Official reference pages:
+- EGX: https://beta.egx.com.eg/en
+- FRA: https://fra.gov.eg/en/press-releases/
+- EGID: https://www.egidegypt.com/
+
+EGID publishes a Swagger API with delayed-feed endpoints. A restricted client scaffold is included, but the repository has no EGID-issued credentials and no verified data-use agreement. It does not claim a live data connection. See [docs/data_sources.md](docs/data_sources.md).
 
 ## Important analytical limits
 
@@ -50,3 +52,44 @@ There is no Anthropic API integration in this version. A Claude chat subscriptio
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## Financial and market-data ingestion
+
+Import sourced financial-statement CSVs:
+```bash
+python -m src.ingest_cli financial INPUT.csv OUTPUT.jsonl
+python -m src.ingest_cli prices INPUT.csv OUTPUT.jsonl
+```
+Use templates in `data/templates/`. Each row must include source name, URL, status, and as-of date. Invalid rows are reported rather than silently accepted.
+
+## Historical SQLite database
+
+The analyst branch includes an append-only local SQLite store for sourced financial statements, daily OHLCV observations, and corporate actions. It preserves competing source observations, ranks declared official data ahead of third-party, user-supplied, and estimate records, and makes identical imports idempotent.
+
+```bash
+python -m src.db_cli init
+python -m src.db_cli import financial data/your_financials.csv
+python -m src.db_cli import prices data/your_prices.csv
+python -m src.db_cli import actions data/corporate_actions.csv
+python -m src.db_cli summary
+```
+
+The database defaults to `data/egx_history.sqlite3`. It stores records you supply; it does not create live market data or connect to a broker.
+
+## Source registry and EGID delayed-feed scaffold
+
+```bash
+python -m src.source_cli
+python -m src.egid_cli --endpoint /api/DelayedFeed/getEGXMarketWatch
+```
+
+The EGID command requires a vendor-issued `EGID_BEARER_TOKEN` and confirmation that automated use is permitted. It returns raw, unnormalized JSON and does not import it into the analyst database.
+
+## Corporate actions and adjusted technical indicators
+
+Import sourced dividends, splits, bonus issues, and rights issues with the corporate-actions template. Raw prices are never overwritten. Adjusted OHLC is calculated separately using explicit event data and reference prices. For long histories, use `get_adjusted_price_history` with `analyze_price_history`; the technical analyzer does not silently fall back to raw closes.
+
+
+## Historical risk diagnostics
+
+The analyst includes historical volatility, maximum drawdown, historical VaR/CVaR and portfolio position-size concentration. These are backward-looking, not forecasts. See [risk methodology](docs/risk.md) and run `python -m src.db_cli risk SYMBOL` after importing verified daily prices and corporate actions.

@@ -176,7 +176,7 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
             "symbols": [],
             "direct_symbols": [],
             "match_type": match_type,
-            "direction": "غير محسوم",
+            "direction": "غير محسوم من العنوان وحده",
             "headline_tone": headline_tone,
             "analysis": "لم تظهر صلة كافية بمحفظتك وفق قواعد الفحص؛ لم يُرسل تنبيه.",
         }
