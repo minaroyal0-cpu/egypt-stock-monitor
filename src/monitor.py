@@ -94,12 +94,13 @@ def main():
             gathered[item["link"]] = item
 
     fresh = [item for link, item in gathered.items() if link not in seen]
-    # Prefer the newest RSS items; malformed/missing dates sort to the end.
+
     def published_key(item):
         try:
             return parsedate_to_datetime(item["published"]).timestamp()
         except Exception:
             return 0
+
     fresh.sort(key=published_key, reverse=True)
     fresh = fresh[:MAX_ITEMS_PER_RUN]
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -109,32 +110,38 @@ def main():
         return
 
     for item in fresh:
-        title = re.sub(r"\s+", " ", item["title"]).strip()
+        title = re.sub(r"\\s+", " ", item["title"]).strip()
         impact = analyze_headline(title)
+
         if impact["important"]:
-            msg = (
-                "📡 EGX Impact Intelligence — تنبيه مهم للمحفظة\n\n"
-                f"{title}\n\n"
-                f"{impact['analysis']}\n\n"
-                f"المصدر التجميعي: {item['source']}\n"
-                f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
-                f"تم الفحص: {now}\n\n"
-                f"الرابط: {item['link']}\n\n"
-                "مهم: الرصد مبني على عنوان RSS فقط. تحقق من المصدر الأصلي والإفصاح، ولا تعتبره توصية أو توقعًا لحركة السعر."
-            )
-            telegram_send(msg[:3900])
-            print(f"Alert sent: {title}")
+            marker = "🔴"
+            category = "خبر مهم مرتبط بالمحفظة"
+            details = impact["analysis"]
         else:
-            print(f"Skipped (not portfolio-relevant/important): {title}")
-        # Mark both alerted and filtered items as processed to avoid rescanning them forever.
+            marker = "🔵"
+            category = "خبر آخر / متابعة عامة"
+            details = "لم ترصد قواعد الفحص الحالية صلة مباشرة أو قطاعية كافية بالأسهم الموجودة في قائمة المتابعة. هذا لا يعني أن الخبر بلا أهمية للسوق."
+
+        msg = (
+            f"{marker} EGX Impact Intelligence — {category}\n\n"
+            f"{title}\n\n"
+            f"{details}\n\n"
+            f"المصدر التجميعي: {item['source']}\n"
+            f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
+            f"تم الفحص: {now}\n\n"
+            f"الرابط: {item['link']}\n\n"
+            "تنبيه: التصنيف آلي ومبدئي اعتمادًا على عنوان RSS فقط، وليس إفصاحًا موثقًا أو توصية استثمارية. تحقق من المصدر الأصلي قبل اتخاذ أي قرار."
+        )
+        telegram_send(msg[:3900])
+        print(f"Sent [{category}]: {title}")
         seen.add(item["link"])
 
-    # Save a bounded history; workflow commits this file back to the repository.
     ordered = list(seen_list)
     for item in fresh:
         if item["link"] not in ordered:
             ordered.append(item["link"])
     SEEN_FILE.write_text(json.dumps(ordered[-MAX_SEEN:], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
 
 if __name__ == "__main__":
     try:
