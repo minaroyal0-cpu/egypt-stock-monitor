@@ -82,7 +82,7 @@ def store_records(db_path, kind, records, input_name="manual"):
                 (symbol, { 'period, basis' if kind == 'financial' else 'date' },
                  currency, source, source_url, data_status, as_of,
                  record_hash, payload_json, ingested_at)
-                VALUES ({','.join(['?'] * (10 if kind == 'financial' else 9))})""",
+                VALUES ({','.join(['?'] * (11 if kind == 'financial' else 10))})""",
                 (
                     record["symbol"],
                     *((record["period"], record["basis"]) if kind == "financial" else (record["date"],)),
@@ -92,10 +92,6 @@ def store_records(db_path, kind, records, input_name="manual"):
                 )
             )
             inserted += cursor.rowcount
-        conn.execute(
-            "INSERT INTO ingestion_runs(kind,input_name,accepted,rejected,created_at) VALUES(?,?,?,?,?)",
-            (kind, str(input_name), len(records), 0, datetime.now(timezone.utc).isoformat())
-        )
     return {"inserted": inserted, "duplicates": len(records) - inserted}
 
 def get_best_financial(db_path, symbol, period, basis, currency=None):

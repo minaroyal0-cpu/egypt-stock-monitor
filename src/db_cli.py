@@ -18,7 +18,7 @@ def import_csv(db_path, input_path, kind):
             except (ValueError, TypeError) as exc:
                 rejected.append({"line": line_no, "error": str(exc)})
     result = store_records(db_path, kind, accepted, input_name=input_path)
-    record_ingestion_result(db_path, kind, input_path, 0, len(rejected))
+    record_ingestion_result(db_path, kind, input_path, len(accepted), len(rejected))
     return {**result, "accepted": len(accepted), "rejected": rejected, "database": str(db_path)}
 
 def main():
