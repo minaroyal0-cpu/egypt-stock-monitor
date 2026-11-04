@@ -33,7 +33,7 @@ class BacktestTests(unittest.TestCase):
         self.assertTrue(all(p["cash"] >= -1e-8 for p in result["equity_curve"]))
 
     def test_final_bar_signal_is_not_executed(self):
-        bars = make_bars([10, 9, 8, 9, 11, 12])
+        bars = make_bars([10, 9, 8, 9, 11])
         result = moving_average_backtest(bars, 1000, 2, 3, 0, 0)
         self.assertTrue(all(t["date"] != bars[-1]["date"] for t in result["trades"]))
 

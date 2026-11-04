@@ -151,7 +151,7 @@ def moving_average_backtest(
         "total_return": total_return, "cagr": cagr,
         "annualized_volatility": volatility, "max_drawdown": abs(max_drawdown),
         "turnover": (total_buy_notional + total_sell_notional) / average_equity if average_equity else 0.0,
-        "trades": trades, "trade_count": len(trades), "equity_curve": equity_curve,
+        "trades": trades, "trade_count": len(trades),
         "closed_round_trips": closed,
         "win_rate": (sum(p > 0 for p in closed_trade_pnls) / closed) if closed else None,
         "commission_rate": commission_rate, "slippage_rate": slippage_rate,
