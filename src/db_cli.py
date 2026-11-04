@@ -24,16 +24,18 @@ def main():
     summary=sub.add_parser("summary"); summary.add_argument("--db",default="data/egx_history.sqlite3")
     risk=sub.add_parser("risk",help="Historical risk metrics for one symbol")
     risk.add_argument("symbol"); risk.add_argument("--start"); risk.add_argument("--end")
-    risk.add_argument("--periods-per-year",type=int,default=252); risk.add_argument("--db",default="data/egx_history.sqlite3")
+    risk.add_argument("--periods-per-year",type=int,default=252); risk.add_argument("--currency",help="Required when the symbol has price history in multiple currencies"); risk.add_argument("--db",default="data/egx_history.sqlite3")
     concentration=sub.add_parser("concentration",help="Position-size concentration from a JSON object")
     concentration.add_argument("positions_json",help='Example: \'{"ABUK":750,"FWRY":250}\'')
     args=parser.parse_args()
     if args.command=="init": connect(args.db).close(); result={"initialized":True,"database":args.db}
     elif args.command=="import": result=import_csv(args.db,args.input_csv,args.kind)
     elif args.command=="risk":
-        bars=get_adjusted_price_history(args.db,args.symbol,args.start,args.end)
+        bars=get_adjusted_price_history(args.db,args.symbol,args.start,args.end,args.currency)
+        currencies=sorted({bar["currency"] for bar in bars})
+        if len(currencies)>1: raise SystemExit("Multiple currencies found; rerun with --currency CODE to avoid mixing price series.")
         if len(bars)<3: raise SystemExit("Insufficient sourced price history: at least 3 adjusted closes are required.")
-        result={"symbol":args.symbol.upper(),"price_basis":"backward_adjusted_close","risk":historical_risk([bar["adjusted_close"] for bar in bars],args.periods_per_year)}
+        result={"symbol":args.symbol.upper(),"currency":currencies[0],"price_basis":"backward_adjusted_close","adjustment_as_of":args.end or "latest stored action","risk":historical_risk([bar["adjusted_close"] for bar in bars],args.periods_per_year)}
     elif args.command=="concentration":
         try: positions=json.loads(args.positions_json)
         except json.JSONDecodeError as exc: raise SystemExit("positions_json must be a valid JSON object") from exc
