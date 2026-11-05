@@ -151,7 +151,7 @@ def _matches_company(text: str, symbol: str, company: dict) -> bool:
     return False
 
 
-def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
+def analyze_headline(title: str, portfolio: list[str] | None = None, source_name: str | None = None) -> dict:
     text = normalize(title)
     portfolio = portfolio if portfolio is not None else load_portfolio()
     portfolio = [symbol for symbol in portfolio if symbol in COMPANIES]
@@ -189,15 +189,42 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
 
     match_type = "مباشر" if direct else ("قطاعي غير مباشر" if indirectly_relevant else "لا توجد صلة محددة")
     important = bool(symbols and applicable)
-    if direct and any(rule["id"] == "corporate_event" for rule in applicable):
+
+    # A review score ranks what deserves human attention; it is NOT an impact,
+    # return, probability, or price-direction prediction.
+    score = 0
+    score_reasons = []
+    if direct:
+        score += 35
+        score_reasons.append("مطابقة مباشرة لشركة (+35)")
+    elif indirectly_relevant:
+        score += 20
+        score_reasons.append("مطابقة قطاعية غير مباشرة (+20)")
+    if any(rule["id"] == "corporate_event" for rule in applicable):
+        score += 40
+        score_reasons.append("حدث مؤسسي محتمل (+40)")
+    elif applicable:
+        score += 20
+        score_reasons.append("عامل اقتصادي/قطاعي (+20)")
+    if len({rule["id"] for rule in applicable}) >= 2:
+        score += 10
+        score_reasons.append("أكثر من قناة تأثير محتملة (+10)")
+    score = min(score, 85)
+
+    publisher = (source_name or "").strip()
+    source_context = (
+        f"اسم الناشر الظاهر في RSS: {publisher} (غير موثق استقلاليًا)"
+        if publisher and publisher.lower() not in {"google news rss", "google news"}
+        else "اسم الناشر غير متاح أو غير محدد؛ Google News RSS مصدر تجميعي"
+    )
+    if important and score >= 65:
         review_priority = "أولوية مرتفعة"
-        priority_reason = "ذكر مباشر لشركة مع حدث مؤسسي محتمل؛ راجع الإفصاح الأصلي أولًا."
     elif important:
         review_priority = "أولوية عادية"
-        priority_reason = "صلة قطاعية أو اقتصادية محتملة؛ راجع التفاصيل قبل تحديد الأثر."
     else:
         review_priority = "لا أولوية"
-        priority_reason = "لم تتحقق صلة كافية بالمحفظة وفق قواعد العنوان الحالية."
+    priority_reason = "؛ ".join(score_reasons) if score_reasons else "لم تتحقق صلة كافية بالمحفظة."
+
 
     if not important:
         return {
@@ -209,6 +236,9 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
             "headline_tone": headline_tone,
             "review_priority": review_priority,
             "priority_reason": priority_reason,
+            "review_score": score,
+            "score_reasons": score_reasons,
+            "source_context": source_context,
             "analysis": "لم تظهر صلة كافية بمحفظتك وفق قواعد الفحص؛ لم يُرسل تنبيه.",
         }
 
@@ -226,8 +256,13 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
         "headline_tone": headline_tone,
         "review_priority": review_priority,
         "priority_reason": priority_reason,
+        "review_score": score,
+        "score_reasons": score_reasons,
+        "source_context": source_context,
         "analysis": (
             f"أولوية المراجعة: {review_priority} — {priority_reason}\n"
+            f"درجة المراجعة: {score}/100 (ترتيب انتباه فقط، وليست توقعًا للأثر أو السعر)\n"
+            f"تقييم المصدر: {source_context}\n"
             f"📌 الأسهم المرتبطة: {names}\n"
             f"نوع الصلة: {match_type}\n"
             "اتجاه الأثر على السعر: غير محسوم من العنوان وحده\n"
