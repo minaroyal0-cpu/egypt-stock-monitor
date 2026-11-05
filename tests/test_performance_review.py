@@ -43,7 +43,7 @@ class PerformanceReviewTests(unittest.TestCase):
         ]
         with TemporaryDirectory() as folder:
             path = Path(folder) / "prices.csv"
-            path.write_text("\\n".join(rows) + "\\n", encoding="utf-8")
+            path.write_text("\n".join(rows) + "\n", encoding="utf-8")
             result = review_event_window_from_csv(
                 str(path), "ABUK", "2026-01-01", "2026-01-10"
             )
@@ -63,7 +63,7 @@ class PerformanceReviewTests(unittest.TestCase):
         ]
         with TemporaryDirectory() as folder:
             path = Path(folder) / "prices.csv"
-            path.write_text("\\n".join(rows) + "\\n", encoding="utf-8")
+            path.write_text("\n".join(rows) + "\n", encoding="utf-8")
             with self.assertRaises(ValueError):
                 review_event_window_from_csv(str(path), "ABUK", "2026-01-01", "2026-01-10")
 
