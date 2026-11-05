@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from src.performance_review import percentage_return, review_event_window
+from pathlib import Path\nfrom tempfile import TemporaryDirectory\n\nfrom src.performance_review import (\n    percentage_return, review_event_window, review_event_window_from_csv,\n)
 
 
 class PerformanceReviewTests(unittest.TestCase):
@@ -32,6 +32,40 @@ class PerformanceReviewTests(unittest.TestCase):
             review_event_window("", "2026-01-01", "2026-01-10", 10, 11, 20, 21)
         with self.assertRaises(ValueError):
             review_event_window("ABUK", "01-01-2026", "2026-01-10", 10, 11, 20, 21)
+
+    def test_csv_review_uses_shared_dates_and_retains_sources(self):
+        rows = [
+            "symbol,date,close,source,source_url,data_status,as_of",
+            "ABUK,2026-01-02,100,Issuer,https://issuer.example/prices,official,2026-01-02",
+            "EGX30,2026-01-02,200,EGX,https://egx.example/prices,official,2026-01-02",
+            "ABUK,2026-01-05,110,Issuer,https://issuer.example/prices,official,2026-01-05",
+            "EGX30,2026-01-05,220,EGX,https://egx.example/prices,official,2026-01-05",
+        ]
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "prices.csv"
+            path.write_text("\\n".join(rows) + "\\n", encoding="utf-8")
+            result = review_event_window_from_csv(
+                str(path), "ABUK", "2026-01-01", "2026-01-10"
+            )
+        self.assertEqual(result["actual_start_date"], "2026-01-02")
+        self.assertEqual(result["actual_end_date"], "2026-01-05")
+        self.assertEqual(result["stock_return_pct"], 10.0)
+        self.assertEqual(result["benchmark_return_pct"], 10.0)
+        self.assertEqual(result["stock_price_provenance_start"]["data_status"], "official")
+
+    def test_csv_review_rejects_missing_provenance(self):
+        rows = [
+            "symbol,date,close,source,source_url,data_status,as_of",
+            "ABUK,2026-01-02,100,,https://issuer.example,official,2026-01-02",
+            "EGX30,2026-01-02,200,EGX,https://egx.example,official,2026-01-02",
+            "ABUK,2026-01-05,110,Issuer,https://issuer.example,official,2026-01-05",
+            "EGX30,2026-01-05,220,EGX,https://egx.example,official,2026-01-05",
+        ]
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "prices.csv"
+            path.write_text("\\n".join(rows) + "\\n", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                review_event_window_from_csv(str(path), "ABUK", "2026-01-01", "2026-01-10")
 
     def test_end_date_must_follow_event_date(self):
         with self.assertRaises(ValueError):
