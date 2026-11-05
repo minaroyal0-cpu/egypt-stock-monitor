@@ -10,6 +10,7 @@ from pathlib import Path
 from email.utils import parsedate_to_datetime
 
 from impact import analyze_headline
+from source_check import classify_source_url
 
 ROOT = Path(__file__).resolve().parents[1]
 SEEN_FILE = ROOT / "seen.json"
@@ -58,6 +59,7 @@ def get_items(query: str):
             "link": link,
             "published": get("pubDate"),
             "source": (node.findtext("source") or "Google News RSS").strip(),
+            "source_url": (node.find("source").get("url", "") if node.find("source") is not None else ""),
             "query": query,
         })
     return items
@@ -111,6 +113,7 @@ def main():
     for item in fresh:
         title = re.sub(r"\s+", " ", item["title"]).strip()
         impact = analyze_headline(title, source_name=item["source"])
+        source_check = classify_source_url(item.get("source_url"))
         if impact["important"]:
             msg = (
                 f"📡 EGX Impact Intelligence — {impact['review_priority']}\n\n"
@@ -118,7 +121,10 @@ def main():
                 f"أولوية المراجعة: {impact['review_priority']}\n"
                 f"السبب: {impact['priority_reason']}\n"
                 f"درجة المراجعة: {impact['review_score']}/100 (ليست توقعًا سعريًا)\n"
-                f"المصدر: {impact['source_context']}\n\n"
+                f"المصدر الظاهر: {impact['source_context']}\n"
+                f"فحص النطاق: {source_check['source_class']} — {source_check['source_label']}\n"
+                f"النطاق: {source_check['source_domain'] or 'غير متاح'}\n"
+                f"ملاحظة التحقق: {source_check['source_note']}\n\n"
                 f"{impact['analysis']}\n\n"
                 f"المصدر التجميعي: {item['source']}\n"
                 f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
