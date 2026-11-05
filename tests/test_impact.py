@@ -32,6 +32,16 @@ class ImpactTests(unittest.TestCase):
         self.assertEqual(result["symbols"], ["HALN"])
         self.assertEqual(result["match_type"], "مباشر")
 
+    def test_common_word_halan_is_not_a_company_mention_without_context(self):
+        result = analyze_headline("حالا سوف تبدأ أعمال المؤتمر في القاهرة", ["HALN"])
+        self.assertFalse(result["important"])
+        self.assertEqual(result["direct_symbols"], [])
+
+    def test_ticker_must_be_a_separate_token(self):
+        result = analyze_headline("كلمة XHALN غير مرتبطة بالشركة", ["HALN"])
+        self.assertFalse(result["important"])
+        self.assertEqual(result["direct_symbols"], [])
+
     def test_tone_is_not_stock_direction(self):
         result = analyze_headline("فوري تعلن زيادة الإيرادات", ["FWRY"])
         self.assertEqual(result["headline_tone"], "إيجابية لغويًا فقط")
