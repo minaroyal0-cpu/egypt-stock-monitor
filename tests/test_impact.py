@@ -10,30 +10,32 @@ class ImpactTests(unittest.TestCase):
         self.assertEqual(result["symbols"], ["ABUK"])
         self.assertEqual(result["match_type"], "مباشر")
         self.assertEqual(result["direction"], "غير محسوم من العنوان وحده")
-        self.assertEqual(result["review_priority"], "عاجل للمراجعة")
+        self.assertEqual(result["review_priority"], "أولوية مرتفعة")
 
     def test_macro_sector_news_maps_to_portfolio_indirectly(self):
         result = analyze_headline("البنك المركزي يعلن خفض سعر الفائدة", ["BQDC", "TMGH"])
         self.assertTrue(result["important"])
         self.assertEqual(set(result["symbols"]), {"BQDC", "TMGH"})
         self.assertEqual(result["match_type"], "قطاعي غير مباشر")
+        self.assertEqual(result["review_priority"], "أولوية عادية")
 
     def test_unrelated_headline_is_not_alerted(self):
         result = analyze_headline("افتتاح معرض فني في القاهرة", ["ABUK"])
         self.assertFalse(result["important"])
-        self.assertEqual(result["review_priority"], "غير عاجل")
+        self.assertEqual(result["review_priority"], "لا أولوية")
 
     def test_sector_news_without_company_name_can_be_watch_item(self):
         result = analyze_headline("ارتفاع أسعار الأسمدة عالميًا", ["ABUK"])
         self.assertTrue(result["important"])
         self.assertEqual(result["match_type"], "قطاعي غير مباشر")
-        self.assertEqual(result["review_priority"], "متابعة")
+        self.assertEqual(result["review_priority"], "أولوية عادية")
 
     def test_haln_fintech_link(self):
         result = analyze_headline("حالا توسع خدمات التكنولوجيا المالية", ["HALN"])
         self.assertTrue(result["important"])
         self.assertEqual(result["symbols"], ["HALN"])
         self.assertEqual(result["match_type"], "مباشر")
+        self.assertEqual(result["review_priority"], "أولوية عادية")
 
     def test_common_word_halan_is_not_a_company_mention_without_context(self):
         result = analyze_headline("حالا سوف تبدأ أعمال المؤتمر في القاهرة", ["HALN"])
