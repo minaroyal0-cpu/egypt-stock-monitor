@@ -156,7 +156,7 @@ def main():
         seen.add(item["link"])
 
     AUDIT_FILE.write_text(
-        json.dumps(audit_records, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+        json.dumps(audit_records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
 
     # Save a bounded history; workflow commits this file back to the repository.
