@@ -93,3 +93,20 @@ Import sourced dividends, splits, bonus issues, and rights issues with the corpo
 ## Historical risk diagnostics
 
 The analyst includes historical volatility, maximum drawdown, historical VaR/CVaR and portfolio position-size concentration. These are backward-looking, not forecasts. See [risk methodology](docs/risk.md) and run `python -m src.db_cli risk SYMBOL` after importing verified daily prices and corporate actions.
+
+## Batch historical news-event study
+
+The market-model event-study module can analyze a CSV register of historical news events against a separately sourced daily-prices CSV. It does not fetch market prices or infer which company an article affects; the event register must be reviewed and mapped to the correct ticker by a human.
+
+Create an event register with these columns:
+- Required: `event_id,symbol,event_date`
+- Optional: `benchmark,estimation_window,event_window_start,event_window_end`
+
+An example header and row are available in [data/templates/event_register.csv](data/templates/event_register.csv). Defaults are benchmark `EGX30`, 60 pre-event return observations, and event offsets -1 through +1. Offsets are trading sessions, not calendar days. Offset 0 is the return ending on the event date.
+
+Run:
+```bash
+python -m src.event_study_batch --events data/events.csv --prices data/daily_prices.csv --output data/event_study_results.jsonl
+```
+
+Each input event produces one JSONL result. A bad event row is recorded as an error without discarding successful rows; the command exits non-zero if any row failed. Results report abnormal returns and CAR in percentage points. They remain descriptive, are not causal evidence or a trading signal, and depend on the quality and adjustment of the supplied prices.
