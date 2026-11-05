@@ -10,6 +10,7 @@ from pathlib import Path
 from email.utils import parsedate_to_datetime
 
 from impact import analyze_headline
+from event_inbox import append_candidates
 
 ROOT = Path(__file__).resolve().parents[1]
 SEEN_FILE = ROOT / "seen.json"
@@ -102,6 +103,9 @@ def main():
             return 0
     fresh.sort(key=published_key, reverse=True)
     fresh = fresh[:MAX_ITEMS_PER_RUN]
+    inbox_path = ROOT / "event_inbox.csv"
+    added_candidates = append_candidates(inbox_path, fresh)
+    print(f"Event inbox: {added_candidates} new candidate(s) queued for human review.")
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     if not fresh:
