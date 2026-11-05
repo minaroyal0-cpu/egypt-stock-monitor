@@ -190,13 +190,13 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
     match_type = "مباشر" if direct else ("قطاعي غير مباشر" if indirectly_relevant else "لا توجد صلة محددة")
     important = bool(symbols and applicable)
     if direct and any(rule["id"] == "corporate_event" for rule in applicable):
-        review_priority = "عاجل للمراجعة"
+        review_priority = "أولوية مرتفعة"
         priority_reason = "ذكر مباشر لشركة مع حدث مؤسسي محتمل؛ راجع الإفصاح الأصلي أولًا."
     elif important:
-        review_priority = "متابعة"
+        review_priority = "أولوية عادية"
         priority_reason = "صلة قطاعية أو اقتصادية محتملة؛ راجع التفاصيل قبل تحديد الأثر."
     else:
-        review_priority = "غير عاجل"
+        review_priority = "لا أولوية"
         priority_reason = "لم تتحقق صلة كافية بالمحفظة وفق قواعد العنوان الحالية."
 
     if not important:
