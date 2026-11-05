@@ -93,3 +93,24 @@ Import sourced dividends, splits, bonus issues, and rights issues with the corpo
 ## Historical risk diagnostics
 
 The analyst includes historical volatility, maximum drawdown, historical VaR/CVaR and portfolio position-size concentration. These are backward-looking, not forecasts. See [risk methodology](docs/risk.md) and run `python -m src.db_cli risk SYMBOL` after importing verified daily prices and corporate actions.
+
+## Benchmark-relative event review
+
+The historical event-review helper compares a supplied stock price change with a benchmark change over the same explicitly dated window:
+
+```python
+from src.performance_review import review_event_window
+
+result = review_event_window(
+    symbol="ABUK",
+    event_date="2026-01-01",
+    end_date="2026-01-10",
+    start_price=100,
+    end_price=108,
+    benchmark_start=200,
+    benchmark_end=204,
+    benchmark_symbol="EGX30",
+)
+```
+
+It validates ISO dates and finite positive prices, then reports simple returns and their difference in percentage points. Supply verified prices from the same start/end dates. This is a descriptive comparison, not an event-study abnormal-return model: it does not establish causality or adjust for dividends, liquidity, volatility, or other risk factors.

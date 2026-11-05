@@ -35,3 +35,15 @@ python -m src.backtest_cli ABUK --start 2024-01-01 --end 2025-12-31 --currency E
 ```
 
 Options include `--cash`, `--fast`, `--slow`, `--commission`, and `--slippage`. Rates are decimal fractions (0.001 = 0.10%). Outputs are descriptive historical simulations, not forecasts, guarantees, or personalized investment instructions.
+
+## Benchmark-relative event review
+
+For a descriptive comparison around a dated event, prepare one CSV containing both the share and benchmark. Required columns are `symbol,date,close,source,source_url,data_status,as_of`. Keep one row per instrument per trading date; source URLs must be HTTPS and statuses must be `official`, `third_party`, or `user_supplied`.
+
+Run:
+
+```bash
+python -m src.performance_review_cli data/prices.csv ABUK 2026-01-01 2026-01-31 --benchmark EGX30
+```
+
+The tool uses the first and last dates shared by both instruments inside the requested window, so the two returns cover identical trading dates. It prints the actual dates and provenance for the four endpoint prices. At least two shared dates are required. The output is descriptive only, not causal attribution or a buy/sell signal. It does not adjust prices for dividends, splits, or other corporate actions; use a consistently adjusted series before interpreting long windows.

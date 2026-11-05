@@ -10,32 +10,58 @@ class ImpactTests(unittest.TestCase):
         self.assertEqual(result["symbols"], ["ABUK"])
         self.assertEqual(result["match_type"], "مباشر")
         self.assertEqual(result["direction"], "غير محسوم من العنوان وحده")
+        self.assertEqual(result["review_priority"], "أولوية مرتفعة")
+        self.assertEqual(result["review_score"], 75)
+        self.assertIn("حدث مؤسسي محتمل (+40)", result["score_reasons"])
 
     def test_macro_sector_news_maps_to_portfolio_indirectly(self):
         result = analyze_headline("البنك المركزي يعلن خفض سعر الفائدة", ["BQDC", "TMGH"])
         self.assertTrue(result["important"])
         self.assertEqual(set(result["symbols"]), {"BQDC", "TMGH"})
         self.assertEqual(result["match_type"], "قطاعي غير مباشر")
+        self.assertEqual(result["review_priority"], "أولوية عادية")
+        self.assertEqual(result["review_score"], 40)
 
     def test_unrelated_headline_is_not_alerted(self):
         result = analyze_headline("افتتاح معرض فني في القاهرة", ["ABUK"])
         self.assertFalse(result["important"])
+        self.assertEqual(result["review_priority"], "لا أولوية")
 
     def test_sector_news_without_company_name_can_be_watch_item(self):
         result = analyze_headline("ارتفاع أسعار الأسمدة عالميًا", ["ABUK"])
         self.assertTrue(result["important"])
         self.assertEqual(result["match_type"], "قطاعي غير مباشر")
+        self.assertEqual(result["review_priority"], "أولوية عادية")
 
     def test_haln_fintech_link(self):
         result = analyze_headline("حالا توسع خدمات التكنولوجيا المالية", ["HALN"])
         self.assertTrue(result["important"])
         self.assertEqual(result["symbols"], ["HALN"])
         self.assertEqual(result["match_type"], "مباشر")
+        self.assertEqual(result["review_priority"], "أولوية عادية")
+
+    def test_common_word_halan_is_not_a_company_mention_without_context(self):
+        result = analyze_headline("حالا سوف تبدأ أعمال المؤتمر في القاهرة", ["HALN"])
+        self.assertFalse(result["important"])
+        self.assertEqual(result["direct_symbols"], [])
+
+    def test_ticker_must_be_a_separate_token(self):
+        result = analyze_headline("كلمة XHALN غير مرتبطة بالشركة", ["HALN"])
+        self.assertFalse(result["important"])
+        self.assertEqual(result["direct_symbols"], [])
 
     def test_tone_is_not_stock_direction(self):
         result = analyze_headline("فوري تعلن زيادة الإيرادات", ["FWRY"])
         self.assertEqual(result["headline_tone"], "إيجابية لغويًا فقط")
         self.assertEqual(result["direction"], "غير محسوم من العنوان وحده")
+
+    def test_source_is_reported_as_unverified_rss_metadata(self):
+        result = analyze_headline("أبو قير للأسمدة تعلن نتائج الأعمال", ["ABUK"], source_name="Example Publisher")
+        self.assertIn("غير موثق استقلاليًا", result["source_context"])
+
+    def test_score_is_capped_below_prediction_scale(self):
+        result = analyze_headline("أبو قير للأسمدة تعلن نتائج الأعمال مع ارتفاع أسعار الأسمدة", ["ABUK"])
+        self.assertLessEqual(result["review_score"], 85)
 
     def test_invalid_symbol_is_ignored(self):
         result = analyze_headline("خبر عن بنك القاهرة", ["NOT_A_REAL_SYMBOL"])
