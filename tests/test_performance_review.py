@@ -38,4 +38,5 @@ class PerformanceReviewTests(unittest.TestCase):
             review_event_window("ABUK", "2026-01-10", "2026-01-10", 10, 11, 20, 21)
 
 
-if __name__ == "__main__":\n    unittest.main()
+if __name__ == "__main__":
+    unittest.main()
