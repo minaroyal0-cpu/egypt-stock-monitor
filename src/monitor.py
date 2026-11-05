@@ -113,8 +113,10 @@ def main():
         impact = analyze_headline(title)
         if impact["important"]:
             msg = (
-                "📡 EGX Impact Intelligence — تنبيه مهم للمحفظة\n\n"
+                f"📡 EGX Impact Intelligence — {impact['review_priority']}\n\n"
                 f"{title}\n\n"
+                f"أولوية المراجعة: {impact['review_priority']}\n"
+                f"السبب: {impact['priority_reason']}\n\n"
                 f"{impact['analysis']}\n\n"
                 f"المصدر التجميعي: {item['source']}\n"
                 f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
