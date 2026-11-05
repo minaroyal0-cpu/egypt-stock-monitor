@@ -24,6 +24,13 @@ COMPANIES = {
 
 ALL_SECTORS = sorted({company["sector"] for company in COMPANIES.values()})
 
+# "حالا" is also a common Arabic word meaning "currently/now". Require
+# financial-services context before treating that word as a direct HALN mention.
+HALN_CONTEXT_TERMS = [
+    "التكنولوجيا المالية", "الخدمات المالية", "التمويل", "تقسيط",
+    "مدفوعات", "محفظة إلكترونية", "خدمات مالية", "halan", "fintech",
+]
+
 RULES = [
     {
         "id": "corporate_event",
@@ -127,8 +134,21 @@ def load_portfolio() -> list[str]:
         symbols = data.get("symbols", [])
         return [symbol for symbol in symbols if symbol in COMPANIES]
     except (OSError, ValueError, TypeError):
-        # Fail closed: never silently alert on the entire universe if config is broken.
         return []
+
+
+def _matches_company(text: str, symbol: str, company: dict) -> bool:
+    # Match ticker tokens, not accidental substrings inside longer words.
+    if re.search(r"(?<![a-z0-9])" + re.escape(symbol.lower()) + r"(?![a-z0-9])", text):
+        return True
+    for alias in company["aliases"]:
+        normalized_alias = normalize(alias)
+        if symbol == "HALN" and normalized_alias == normalize("حالا"):
+            if not any(normalize(term) in text for term in HALN_CONTEXT_TERMS):
+                continue
+        if normalized_alias and normalized_alias in text:
+            return True
+    return False
 
 
 def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
@@ -138,8 +158,7 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
 
     direct = []
     for symbol in portfolio:
-        company = COMPANIES[symbol]
-        if symbol.lower() in text or any(normalize(alias) in text for alias in company["aliases"]):
+        if _matches_company(text, symbol, COMPANIES[symbol]):
             direct.append(symbol)
 
     matched_rules = [rule for rule in RULES if any(normalize(term) in text for term in rule["terms"])]
@@ -149,7 +168,7 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
     ]
     indirectly_relevant = [
         symbol for symbol in portfolio
-        if any(COMPANIES[symbol]["sector"] in rule["sectors"] for rule in relevant_rules)
+        if COMPANIES[symbol]["sector"] in {sector for rule in relevant_rules for sector in rule["sectors"]}
     ]
     symbols = list(dict.fromkeys(direct + indirectly_relevant))
     applicable = [
