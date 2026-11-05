@@ -10,9 +10,13 @@ from pathlib import Path
 from email.utils import parsedate_to_datetime
 
 from impact import analyze_headline
+from source_check import classify_source_url
+from audit_log import append_bounded, make_audit_record
 
 ROOT = Path(__file__).resolve().parents[1]
 SEEN_FILE = ROOT / "seen.json"
+AUDIT_FILE = ROOT / "audit.json"
+MAX_AUDIT_RECORDS = 1000
 MAX_ITEMS_PER_RUN = 8
 MAX_SEEN = 500
 
@@ -58,6 +62,7 @@ def get_items(query: str):
             "link": link,
             "published": get("pubDate"),
             "source": (node.findtext("source") or "Google News RSS").strip(),
+            "source_url": (node.find("source").get("url", "") if node.find("source") is not None else ""),
             "query": query,
         })
     return items
@@ -88,6 +93,12 @@ def telegram_send(text: str):
 def main():
     seen_list = load_seen()
     seen = set(seen_list)
+    try:
+        audit_records = json.loads(AUDIT_FILE.read_text(encoding="utf-8"))
+        if not isinstance(audit_records, list):
+            audit_records = []
+    except (OSError, ValueError):
+        audit_records = []
     gathered = {}
     for query in QUERIES:
         for item in get_items(query):
@@ -110,11 +121,20 @@ def main():
 
     for item in fresh:
         title = re.sub(r"\s+", " ", item["title"]).strip()
-        impact = analyze_headline(title)
+        impact = analyze_headline(title, source_name=item["source"])
+        source_check = classify_source_url(item.get("source_url"))
+        alerted = False
         if impact["important"]:
             msg = (
-                "📡 EGX Impact Intelligence — تنبيه مهم للمحفظة\n\n"
+                f"📡 EGX Impact Intelligence — {impact['review_priority']}\n\n"
                 f"{title}\n\n"
+                f"أولوية المراجعة: {impact['review_priority']}\n"
+                f"السبب: {impact['priority_reason']}\n"
+                f"درجة المراجعة: {impact['review_score']}/100 (ليست توقعًا سعريًا)\n"
+                f"المصدر الظاهر: {impact['source_context']}\n"
+                f"فحص النطاق: {source_check['source_class']} — {source_check['source_label']}\n"
+                f"النطاق: {source_check['source_domain'] or 'غير متاح'}\n"
+                f"ملاحظة التحقق: {source_check['source_note']}\n\n"
                 f"{impact['analysis']}\n\n"
                 f"المصدر التجميعي: {item['source']}\n"
                 f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
@@ -123,11 +143,21 @@ def main():
                 "مهم: الرصد مبني على عنوان RSS فقط. تحقق من المصدر الأصلي والإفصاح، ولا تعتبره توصية أو توقعًا لحركة السعر."
             )
             telegram_send(msg[:3900])
+            alerted = True
             print(f"Alert sent: {title}")
         else:
             print(f"Skipped (not portfolio-relevant/important): {title}")
         # Mark both alerted and filtered items as processed to avoid rescanning them forever.
+        audit_records = append_bounded(
+            audit_records,
+            make_audit_record(item, impact, source_check, alerted),
+            MAX_AUDIT_RECORDS,
+        )
         seen.add(item["link"])
+
+    AUDIT_FILE.write_text(
+        json.dumps(audit_records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
     # Save a bounded history; workflow commits this file back to the repository.
     ordered = list(seen_list)

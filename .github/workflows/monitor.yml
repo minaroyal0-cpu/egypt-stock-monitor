@@ -28,12 +28,12 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python src/monitor.py
-      - name: Commit seen article URLs
+      - name: Commit seen URLs and audit history
         run: |
-          if ! git diff --quiet -- seen.json; then
+          if ! git diff --quiet -- seen.json audit.json; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add seen.json
-            git commit -m "Update seen news URLs"
+            git add seen.json audit.json
+            git commit -m "Update news screening audit history"
             git push
           fi
