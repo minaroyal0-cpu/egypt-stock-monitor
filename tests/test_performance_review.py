@@ -1,7 +1,12 @@
-import math
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from pathlib import Path\nfrom tempfile import TemporaryDirectory\n\nfrom src.performance_review import (\n    percentage_return, review_event_window, review_event_window_from_csv,\n)
+from src.performance_review import (
+    percentage_return,
+    review_event_window,
+    review_event_window_from_csv,
+)
 
 
 class PerformanceReviewTests(unittest.TestCase):
@@ -15,8 +20,7 @@ class PerformanceReviewTests(unittest.TestCase):
 
     def test_relative_return_uses_same_window_benchmark(self):
         result = review_event_window(
-            "abuk", "2026-01-01", "2026-01-10",
-            100, 108, 200, 204,
+            "abuk", "2026-01-01", "2026-01-10", 100, 108, 200, 204
         )
         self.assertEqual(result["symbol"], "ABUK")
         self.assertEqual(result["benchmark_symbol"], "EGX30")
@@ -27,11 +31,15 @@ class PerformanceReviewTests(unittest.TestCase):
         self.assertTrue(result["source_prices_required"])
         self.assertIn("لا يثبت", result["interpretation"])
 
-    def test_requires_symbol_and_valid_dates(self):
+    def test_rejects_missing_symbol_and_invalid_dates(self):
         with self.assertRaises(ValueError):
             review_event_window("", "2026-01-01", "2026-01-10", 10, 11, 20, 21)
         with self.assertRaises(ValueError):
             review_event_window("ABUK", "01-01-2026", "2026-01-10", 10, 11, 20, 21)
+
+    def test_end_date_must_follow_event_date(self):
+        with self.assertRaises(ValueError):
+            review_event_window("ABUK", "2026-01-10", "2026-01-10", 10, 11, 20, 21)
 
     def test_csv_review_uses_shared_dates_and_retains_sources(self):
         rows = [
@@ -51,7 +59,9 @@ class PerformanceReviewTests(unittest.TestCase):
         self.assertEqual(result["actual_end_date"], "2026-01-05")
         self.assertEqual(result["stock_return_pct"], 10.0)
         self.assertEqual(result["benchmark_return_pct"], 10.0)
-        self.assertEqual(result["stock_price_provenance_start"]["data_status"], "official")
+        self.assertEqual(
+            result["stock_price_provenance_start"]["data_status"], "official"
+        )
 
     def test_csv_review_rejects_missing_provenance(self):
         rows = [
@@ -65,11 +75,23 @@ class PerformanceReviewTests(unittest.TestCase):
             path = Path(folder) / "prices.csv"
             path.write_text("\n".join(rows) + "\n", encoding="utf-8")
             with self.assertRaises(ValueError):
-                review_event_window_from_csv(str(path), "ABUK", "2026-01-01", "2026-01-10")
+                review_event_window_from_csv(
+                    str(path), "ABUK", "2026-01-01", "2026-01-10"
+                )
 
-    def test_end_date_must_follow_event_date(self):
-        with self.assertRaises(ValueError):
-            review_event_window("ABUK", "2026-01-10", "2026-01-10", 10, 11, 20, 21)
+    def test_csv_review_rejects_duplicate_instrument_date(self):
+        rows = [
+            "symbol,date,close,source,source_url,data_status,as_of",
+            "ABUK,2026-01-02,100,Issuer,https://issuer.example,official,2026-01-02",
+            "ABUK,2026-01-02,101,Issuer,https://issuer.example,official,2026-01-02",
+        ]
+        with TemporaryDirectory() as folder:
+            path = Path(folder) / "prices.csv"
+            path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "duplicate_price"):
+                review_event_window_from_csv(
+                    str(path), "ABUK", "2026-01-01", "2026-01-10"
+                )
 
 
 if __name__ == "__main__":
