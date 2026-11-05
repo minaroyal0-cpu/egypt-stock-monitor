@@ -110,3 +110,9 @@ python -m src.event_study_batch --events data/events.csv --prices data/daily_pri
 ```
 
 Each input event produces one JSONL result. A bad event row is recorded as an error without discarding successful rows; the command exits non-zero if any row failed. Results report abnormal returns and CAR in percentage points. They remain descriptive, are not causal evidence or a trading signal, and depend on the quality and adjustment of the supplied prices.
+
+## Human-review RSS event inbox
+
+The RSS monitor also appends newly discovered headlines to `event_inbox.csv`. Each article URL is deduplicated and receives a stable `event_id`. The monitor deliberately leaves `verified_symbol` and `verified_event_date` blank and sets `review_status=needs_review`: a person must check the original disclosure and identify the correct company and event date before copying a verified row into the batch event register. RSS publication time is retained separately and must not be treated as the event date.
+
+The scheduled workflow commits both `seen.json` and `event_inbox.csv`. The inbox is capped at the latest 2,000 rows. It is a review queue, not a source of verified disclosures or trading recommendations.
