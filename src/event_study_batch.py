@@ -116,7 +116,7 @@ def main(argv: list[str] | None = None) -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open("w", encoding="utf-8") as handle:
         for result in results:
-            handle.write(json.dumps(result, ensure_ascii=False, sort_keys=True) + "\\n")
+            handle.write(json.dumps(result, ensure_ascii=False, sort_keys=True) + "\n")
 
     succeeded = sum(item["status"] == "ok" for item in results)
     failed = len(results) - succeeded
