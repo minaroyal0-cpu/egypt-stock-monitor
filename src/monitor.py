@@ -110,13 +110,15 @@ def main():
 
     for item in fresh:
         title = re.sub(r"\s+", " ", item["title"]).strip()
-        impact = analyze_headline(title)
+        impact = analyze_headline(title, source_name=item["source"])
         if impact["important"]:
             msg = (
                 f"📡 EGX Impact Intelligence — {impact['review_priority']}\n\n"
                 f"{title}\n\n"
                 f"أولوية المراجعة: {impact['review_priority']}\n"
-                f"السبب: {impact['priority_reason']}\n\n"
+                f"السبب: {impact['priority_reason']}\n"
+                f"درجة المراجعة: {impact['review_score']}/100 (ليست توقعًا سعريًا)\n"
+                f"المصدر: {impact['source_context']}\n\n"
                 f"{impact['analysis']}\n\n"
                 f"المصدر التجميعي: {item['source']}\n"
                 f"تاريخ النشر كما ورد في RSS: {item['published'] or 'غير متاح'}\n"
