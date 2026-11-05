@@ -189,6 +189,16 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
 
     match_type = "مباشر" if direct else ("قطاعي غير مباشر" if indirectly_relevant else "لا توجد صلة محددة")
     important = bool(symbols and applicable)
+    if direct and any(rule["id"] == "corporate_event" for rule in applicable):
+        review_priority = "عاجل للمراجعة"
+        priority_reason = "ذكر مباشر لشركة مع حدث مؤسسي محتمل؛ راجع الإفصاح الأصلي أولًا."
+    elif important:
+        review_priority = "متابعة"
+        priority_reason = "صلة قطاعية أو اقتصادية محتملة؛ راجع التفاصيل قبل تحديد الأثر."
+    else:
+        review_priority = "غير عاجل"
+        priority_reason = "لم تتحقق صلة كافية بالمحفظة وفق قواعد العنوان الحالية."
+
     if not important:
         return {
             "important": False,
@@ -197,6 +207,8 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
             "match_type": match_type,
             "direction": "غير محسوم من العنوان وحده",
             "headline_tone": headline_tone,
+            "review_priority": review_priority,
+            "priority_reason": priority_reason,
             "analysis": "لم تظهر صلة كافية بمحفظتك وفق قواعد الفحص؛ لم يُرسل تنبيه.",
         }
 
@@ -212,7 +224,10 @@ def analyze_headline(title: str, portfolio: list[str] | None = None) -> dict:
         "match_type": match_type,
         "direction": "غير محسوم من العنوان وحده",
         "headline_tone": headline_tone,
+        "review_priority": review_priority,
+        "priority_reason": priority_reason,
         "analysis": (
+            f"أولوية المراجعة: {review_priority} — {priority_reason}\n"
             f"📌 الأسهم المرتبطة: {names}\n"
             f"نوع الصلة: {match_type}\n"
             "اتجاه الأثر على السعر: غير محسوم من العنوان وحده\n"
