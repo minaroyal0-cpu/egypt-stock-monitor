@@ -1,0 +1,2 @@
+event_id,symbol,event_date,benchmark,estimation_window,event_window_start,event_window_end
+news-2026-001,ABUK,2026-10-01,EGX30,60,-1,1
