@@ -93,3 +93,27 @@ Import sourced dividends, splits, bonus issues, and rights issues with the corpo
 ## Historical risk diagnostics
 
 The analyst includes historical volatility, maximum drawdown, historical VaR/CVaR and portfolio position-size concentration. These are backward-looking, not forecasts. See [risk methodology](docs/risk.md) and run `python -m src.db_cli risk SYMBOL` after importing verified daily prices and corporate actions.
+
+
+## EGX Investment Intelligence — phase 1
+
+A standard-library research package is available in `src/ii_egx/`. It ranks supplied EGX symbols by 20-observation median daily turnover, calculates transparent ratios from sourced financial-statement CSVs, and generates a Markdown snapshot.
+
+See [the methodology and limitations](docs/egx_research_engine.md).
+
+Run tests:
+```bash
+python -m unittest discover -s tests -v
+```
+
+Generate liquidity ranking:
+```bash
+python -m src.ii_egx.liquidity data/templates/egx_daily_prices.csv output/liquidity.json
+```
+
+Generate a research report:
+```bash
+python -m src.ii_egx.report data/templates/egx_daily_prices.csv output/egx_report.md --fundamentals-csv data/templates/egx_fundamentals.csv
+```
+
+The templates are schemas/examples, not real market data. Import a complete, current, source-verified EGX universe and daily history before treating rankings as representative of all listed shares. Liquidity thresholds are internal screening bands, not official EGX classifications. This phase does not provide live prices, fair-value estimates, or buy/sell recommendations.
