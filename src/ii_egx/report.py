@@ -32,10 +32,13 @@ def build_report(prices_csv: str, fundamentals_csv: str | None, output_md: str) 
     else:
         lines += ["| Symbol | As of | Operating margin | Net margin | ROE* | Debt/equity | Current ratio | FCF (EGP) |",
                   "|---|---|---:|---:|---:|---:|---:|---:|"]
-        def fmt(value):
-            return "n/a" if value is None else f"{value:.2%}" if abs(value) <= 1 else f"{value:.2f}"
+        def pct(value):
+            return "n/a" if value is None else f"{value:.2%}"
+        def scalar(value):
+            return "n/a" if value is None else f"{value:.2f}"
         for symbol, item in sorted(fundamentals.items()):
-            lines.append(f"| {symbol} | {item['as_of']} | {fmt(item['operating_margin'])} | {fmt(item['net_margin'])} | {fmt(item['roe'])} | {fmt(item['debt_to_equity'])} | {fmt(item['current_ratio'])} | {fmt(item['free_cash_flow_egp'])} |")
+            lines.append(f"| {symbol} | {item['as_of']} | {pct(item['operating_margin'])} | {pct(item['net_margin'])} | {pct(item['roe'])} | {scalar(item['debt_to_equity'])}x | {scalar(item['current_ratio'])}x | {scalar(item['free_cash_flow_egp'])} |")
+
     lines += ["", "* ROE uses period-end equity, not average equity. Bank and insurer ratios need sector-specific interpretation.", "",
               "## Data-quality checklist", "",
               "- Confirm every symbol against the current official EGX instrument list.",
